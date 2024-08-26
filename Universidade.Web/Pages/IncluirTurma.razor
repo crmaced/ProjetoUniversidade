@@ -1,0 +1,96 @@
+﻿@page "/incluirTurma"
+@inject NavigationManager Navigation
+@inject IJSRuntime JsRuntime
+@inject HttpClient Http
+@using Universidade.Web.Domain.Enties
+@using Serilog
+
+<PageTitle>Incluir Turma</PageTitle>
+
+<h3>Incluir Turma</h3>
+
+<EditForm Model="@turmaInput" OnValidSubmit="@HandleValidSubmit">
+	<DataAnnotationsValidator />
+
+	<div class="single-column">
+		<label for="nome"><strong>Nome da Turma</strong></label>
+		<InputText class="input" id="nome" name="nome" @bind-Value="turmaInput.NomeTurma" />
+	</div>
+
+	<div class="double-column">
+		<div class="column-one">
+			<label for="idcurso"><strong>Id Curso</strong></label>
+			 <InputNumber class="input" id="idcurso" name="idcurso" @bind-Value="turmaInput.IdCurso" /> 
+		</div>
+		<div class="column-two">
+			<label for="ano"><strong>Ano</strong></label>
+			<InputNumber class="input" id="ano" name="ano" @bind-Value="turmaInput.Ano" />
+		</div>
+	</div>
+	<div class="butons">
+		<button type="submit" name="editar" class="btn">Incluir Turma</button>
+	</div>
+
+</EditForm>
+
+
+@code {
+
+	private TurmaDTO turmaInput = new TurmaDTO();
+
+	private async Task HandleValidSubmit()
+	{
+		try
+		{
+			var validate = ValidaDados();
+			if (validate is not null)
+			{
+				await JsRuntime.InvokeVoidAsync("alert", validate);
+				return;
+			}
+
+			var response = await Http.PostAsJsonAsync("Turma/InserirTurma", turmaInput);
+
+			if (response.IsSuccessStatusCode)
+			{
+				await JsRuntime.InvokeVoidAsync("alert", "Turma incluída com sucesso.");
+				Navigation.NavigateTo("/turmas", forceLoad: true);
+			}
+			else
+			{
+				var responseContent = await response.Content.ReadFromJsonAsync<ApiResponse<Turma>>();
+				await JsRuntime.InvokeVoidAsync("alert", responseContent.Message);
+			}
+		}
+		catch(Exception ex)
+		{
+			Log.Error($"Erro: {ex.Message}");
+			await JsRuntime.InvokeVoidAsync("alert", "Erro na execução.");
+		}
+	}
+	public string? ValidaDados()
+	{
+		if (turmaInput.NomeTurma is null)
+			return "Por favor, informe o nome da turma.";
+
+		if (turmaInput.NomeTurma.Length > 45)
+			return "Tamanho do campo nome da turma foi excedido.";
+
+		if (turmaInput.Ano is null)
+			return "Por favor, informe o ano da turma.";
+
+		if (turmaInput.Ano < 1)
+			return "O campo ano não pode ser menor que 1.";
+
+		if (turmaInput.Ano > 5)
+			return "O campo ano não pode ser maior que 5.";
+
+		if (turmaInput.IdCurso is null)
+			return "Por favor, informe o id do curso da turma.";
+
+		if (turmaInput.IdCurso < 1)
+			return "O campo id curso não pode ser menor que 1.";
+
+			return null;
+	}
+}

@@ -1,0 +1,103 @@
+﻿@page "/turmas"
+@using Serilog
+@using Universidade.Web.Domain.Enties
+@inject NavigationManager Navigation
+@inject IJSRuntime JsRuntime
+@inject HttpClient Http
+
+<PageTitle>Turmas</PageTitle>
+
+<h1>Turmas</h1>
+
+@if (turmas == null)
+{
+	<p><em>Carregando...</em></p>
+}
+else
+{
+	<div style="display:flex;justify-content: flex-end;">
+		<button class="btn btn-create" @onclick="() => NavigateToPage()">Incluir Turma</button>
+	</div>
+
+	<table class="table-alunos">
+		<thead>
+			<tr class="table-alunos-title">
+				<th style="width: 5%;">Id</th>
+				<th style="width: 10%;">Curso Id</th>
+				<th style="width: 40%;">Turma</th>
+				<th style="width: 10%;">Ano</th>
+				<th style="width: 40%;">Ação</th>
+			</tr>
+		</thead>
+		<tbody>
+			@foreach (var turma in turmas)
+			{
+				<tr>
+					<td>@turma.id</td>
+					<td>@turma.curso_id</td>
+					<td>@turma.turma</td>
+					<td>@turma.ano</td>
+					<td>
+						<button class="btn btn-edit" @onclick="() => NavigateToPage((int)turma.id)">Editar</button>
+						<button class="btn btn-delete" @onclick="() => TaskDelete((int)turma.id)">Excluir</button>
+					</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+}
+
+
+@code {
+	private List<Turma> turmas;
+
+	protected override async Task OnInitializedAsync()
+	{
+		try
+		{
+			var response = await Http.GetFromJsonAsync<ApiResponse<List<Turma>>>("Turma/BuscarTurmas");
+
+			if (response != null && response.Success)
+			{
+				turmas = response.Data;
+			}
+		}
+		catch (Exception ex)
+		{
+			Log.Error($"Erro: {ex.Message}");
+			await JsRuntime.InvokeVoidAsync("alert", "Não foi possível carregar a página. Por favor, tente novamente.");
+		}
+	}
+
+	private async Task TaskDelete(int id)
+	{
+		try
+		{
+			var response = await Http.DeleteFromJsonAsync<ApiResponse<List<Aluno>>>($"Turma/DeletarTurma?id={id}");
+
+			if (response != null && response.Success)
+			{
+				await JsRuntime.InvokeVoidAsync("alert", "Turma excluída com sucesso.");
+				Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+			}
+			else
+			{
+				await JsRuntime.InvokeVoidAsync("alert", "Erro ao excluir a turma. Verifique se não há alunos vinculados a essa turma.");
+			}
+		}
+		catch (Exception ex)
+		{
+			Log.Error($"Erro: {ex.Message}");
+			await JsRuntime.InvokeVoidAsync("alert", "Erro na execução.");
+		}
+	}
+	private void NavigateToPage()
+	{
+		Navigation.NavigateTo("/incluirTurma", forceLoad: true);
+	}
+
+	private void NavigateToPage(int id)
+	{
+		Navigation.NavigateTo($"/editarTurma/{id}", forceLoad: true);
+	}
+}

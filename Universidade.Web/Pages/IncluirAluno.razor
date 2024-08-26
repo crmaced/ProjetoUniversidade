@@ -1,0 +1,97 @@
+﻿@page "/incluirAluno"
+@inject NavigationManager Navigation
+@inject IJSRuntime JsRuntime
+@inject HttpClient Http
+@using Universidade.Web.Domain.Enties
+@using Serilog
+
+<PageTitle>Incluir Aluno</PageTitle>
+
+<h3>Incluir Aluno</h3>
+
+<EditForm Model="@alunoInput" OnValidSubmit="@HandleValidSubmit">
+	<DataAnnotationsValidator />
+	<div class="single-column">
+		<label for="nome"><strong>Aluno</strong></label>
+		<InputText class="input" id="nome" name="nome" @bind-Value="alunoInput.Name" />
+	</div>
+
+	<div class="double-column">
+		<div class="column-one">
+			<label for="usuario"><strong>Usuário</strong></label>
+			<InputText class="input" id="usuario" name="usuario" @bind-Value="alunoInput.Username" />
+		</div>
+		<div class="column-two">
+			<label for="senha"><strong>Senha</strong></label>
+			<InputText class="input" type="password" id="senha" name="senha" @bind-Value="alunoInput.PassWord" />
+		</div>
+	</div>
+	<div class="butons">
+		<button type="submit" name="editar" class="btn">Incluir Aluno</button>
+	</div>
+
+</EditForm>
+
+@code {
+
+	private AlunoDTO alunoInput = new AlunoDTO();
+
+	private async Task HandleValidSubmit()
+	{
+		try
+		{
+			var validate = ValidaDados();
+			if (validate is not null)
+			{
+				await JsRuntime.InvokeVoidAsync("alert", validate);
+				return;
+			}
+
+			var response = await Http.PostAsJsonAsync("Aluno/InserirAluno", alunoInput);
+
+			if (response.IsSuccessStatusCode)
+			{
+				await JsRuntime.InvokeVoidAsync("alert", "Aluno incluído com sucesso.");
+				Navigation.NavigateTo("/alunos", forceLoad: true);
+			}
+			else
+			{
+				var responseContent = await response.Content.ReadFromJsonAsync<ApiResponse<Aluno>>();
+				await JsRuntime.InvokeVoidAsync("alert", responseContent.Data);
+			}
+		}
+		catch(Exception ex)
+		{
+			Log.Error($"Erro: {ex.Message}");
+			await JsRuntime.InvokeVoidAsync("alert", "Erro na execução.");
+		}
+	}
+	public string? ValidaDados()
+	{
+		if (alunoInput.PassWord is null)
+			return "Por favor, informe uma senha.";
+
+		if (alunoInput.PassWord.Length <= 7)
+			return "Senha deve ter pelo menos 8 caracteres e incluir letras maiúsculas, minúsculas, números e caracteres especiais.";
+
+		if (alunoInput.PassWord.Length > 60)
+			return "Tamanho do campo senha foi excedido.";
+
+		if (alunoInput.Username is null)
+			return "Por favor, informe o usuário.";
+
+		if (alunoInput.Username.Length > 45)
+			return "Tamanho do campo usuário foi excedido.";
+
+		if (alunoInput.Username.Length <= 7)
+			return "Usuário deve ter pelo menos 8 caracteres.";
+
+		if (alunoInput.Name is null)
+			return "Por favor, informe o nome do aluno.";
+
+		if (alunoInput.Username.Length > 255)
+			return "Tamanho do campo usuário foi excedido.";
+
+			return null;
+	}
+}

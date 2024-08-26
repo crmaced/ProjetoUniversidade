@@ -1,0 +1,103 @@
+﻿@page "/alunos"
+@using Serilog
+@using Universidade.Web.Domain.Enties
+@inject NavigationManager Navigation
+@inject IJSRuntime JsRuntime
+@inject HttpClient Http
+
+<PageTitle>Alunos</PageTitle>
+
+<h1>Alunos</h1>
+
+@if (alunos == null)
+{
+	<p><em>Carregando...</em></p>
+}
+else
+{
+	<div style="display:flex;justify-content: flex-end;">
+		<button class="btn btn-create" @onclick="() => NavigateToPage()">Incluir Aluno</button>
+	</div>
+
+	<table class="table-alunos">
+		<thead>
+			<tr class="table-alunos-title">
+				<th style="width: 5%;">Id</th>
+				<th style="width: 40%;">Nome</th>
+				<th style="width: 15%;">Usuário</th>
+				<th style="width: 40%;">Ação</th>
+			</tr>
+		</thead>
+		<tbody>
+			@foreach (var aluno in alunos)
+			{
+				<tr>
+					<td>@aluno.id</td>
+					<td>@aluno.nome</td>
+					<td>@aluno.usuario</td>
+					<td>
+						<button class="btn btn-edit" @onclick="() => NavigateToPage((int)aluno.id)">Editar</button>
+						<button class="btn btn-delete" @onclick="() => TaskDelete((int)aluno.id)">Excluir</button>
+					</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+}
+
+
+@code {
+	private List<Aluno> alunos;
+
+	protected override async Task OnInitializedAsync()
+	{
+		try
+		{
+			var response = await Http.GetFromJsonAsync<ApiResponse<List<Aluno>>>("Aluno/BuscarAlunos");
+
+			if (response != null && response.Success)
+			{
+				alunos = response.Data;
+			}
+		}
+		catch (Exception ex)
+		{
+			Log.Error($"Erro: {ex.Message}");
+			await JsRuntime.InvokeVoidAsync("alert", "Não foi possível carregar a página. Por favor, tente novamente.");
+		}
+	}
+
+	private async Task TaskDelete(int id)
+	{
+		try
+		{
+			var response = await Http.DeleteFromJsonAsync<ApiResponse<List<Aluno>>>($"Aluno/DeletarAluno?id={id}");
+
+			if (response != null && response.Success)
+			{
+				await JsRuntime.InvokeVoidAsync("alert", "Aluno excluído com sucesso.");
+				Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+			}
+			else
+			{
+				await JsRuntime.InvokeVoidAsync("alert", "Erro ao excluir aluno. Verifique se não há turmas vinculadas ao aluno.");
+			}
+
+
+		}
+		catch (Exception ex)
+		{
+			Log.Error($"Erro: {ex.Message}");
+			await JsRuntime.InvokeVoidAsync("alert", "Erro na execução.");
+		}
+	}
+	private void NavigateToPage()
+	{
+		Navigation.NavigateTo("/incluirAluno", forceLoad: true);
+	}
+
+	private void NavigateToPage(int id)
+	{
+		Navigation.NavigateTo($"/editarAluno/{id}", forceLoad: true);
+	}
+}

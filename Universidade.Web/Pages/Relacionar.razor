@@ -1,0 +1,100 @@
+﻿@page "/relacionarAlunoTurma"
+@using Serilog
+@using Universidade.Web.Domain.Enties
+@inject NavigationManager Navigation
+@inject IJSRuntime JsRuntime
+@inject HttpClient Http
+
+<PageTitle>Relacionar Aluno-Turma</PageTitle>
+
+<h1>Relacionar Aluno-Turma</h1>
+
+@if (carregando)
+{
+	<p><em>Carregando...</em></p>
+}
+else if (!carregando && (alunos == null || turmas == null))
+{
+	<p><em>Não há dados.</em></p>
+}
+else
+{
+	<div>
+		<label for="turmaSelect">Escolha uma Turma:</label>
+		<select name="turma" id="turma" @bind="idTurmaEscolhida">
+			@foreach (var turma in turmas)
+			{
+				<option value=@turma.id>@turma.turma</option>
+			}
+		</select>
+	</div>
+	<div>
+		<label for="turmaSelect">Escolha um Aluno:</label>
+		<select name="aluno" id="aluno" @bind="idAlunoEscolhido">
+			@foreach (var aluno in alunos)
+			{
+				<option value=@aluno.id>@aluno.nome</option>
+			}
+		</select>
+	</div>
+	
+	<div class="butons">
+		<button class="btn btn-create" @onclick="() => HandleSubmit()">Relacionar</button>
+	</div>
+}
+
+@code {
+	private bool carregando = true;
+
+	private List<Aluno> alunos;
+	private List<Turma> turmas;
+
+	private int idTurmaEscolhida;
+	private int idAlunoEscolhido;
+
+	protected override async Task OnInitializedAsync()
+	{
+		try
+		{
+			var responseAlunos = await Http.GetFromJsonAsync<ApiResponse<List<Aluno>>>("Aluno/BuscarAlunos");
+			var responseTurmas = await Http.GetFromJsonAsync<ApiResponse<List<Turma>>>("Turma/BuscarTurmas");
+
+			if (responseAlunos != null && responseAlunos.Success && responseTurmas != null && responseTurmas.Success)
+			{
+				alunos = responseAlunos.Data;
+				turmas = responseTurmas.Data;
+			}
+
+			carregando = false;
+		}
+		catch (Exception ex)
+		{
+			Log.Error($"Erro: {ex.Message}");
+			await JsRuntime.InvokeVoidAsync("alert", "Não foi possível carregar a página. Por favor, tente novamente.");
+			carregando = false;
+		}
+	}
+
+	private async Task HandleSubmit()
+	{
+		if (idAlunoEscolhido == null || idTurmaEscolhida == null)
+		{
+			await JsRuntime.InvokeVoidAsync("alert", $"É necessário escolher uma turma e um aluno para relacionar.");
+			return;
+		}
+		
+		var response = await Http.PostAsync(
+	$"RelacionarTurma/IncluirRelacionamento?alunoId={idAlunoEscolhido}&turmaId={idTurmaEscolhida}", null);
+		
+		if (response.IsSuccessStatusCode)
+		{
+			await JsRuntime.InvokeVoidAsync("alert", "Relacionamento incluído com sucesso.");
+			Navigation.NavigateTo("/relacionarTurmas", forceLoad: true);
+		}
+		else
+		{
+			var responseContent = await response.Content.ReadFromJsonAsync<ApiResponse<Relacionamento>>();
+			await JsRuntime.InvokeVoidAsync("alert", responseContent.Message);
+		}
+	}
+}

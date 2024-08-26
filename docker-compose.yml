@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  universidade.api:
+    image: ${DOCKER_REGISTRY-}universidadeapi
+    build:
+      context: .
+      dockerfile: Universidade.Api/Dockerfile

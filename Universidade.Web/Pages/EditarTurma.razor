@@ -1,0 +1,134 @@
+﻿@page "/editarTurma/{Id:int}"
+@using Serilog
+@using Universidade.Web.Domain.Enties
+@inject NavigationManager Navigation
+@inject IJSRuntime JsRuntime
+@inject HttpClient Http
+
+<PageTitle>Editar Turma</PageTitle>
+
+<h3>Editar Turma</h3>
+
+@if (turmaInput == null)
+{
+	<p><em>Carregando...</em></p>
+}
+else
+{
+	<EditForm Model="@turmaInput" OnValidSubmit="@HandleValidSubmit">
+		<DataAnnotationsValidator />
+
+		<div class="single-column">
+			<label for="nome"><strong>Nome da Turma</strong></label>
+			<InputText class="input" id="nome" name="nome" @bind-Value="turmaInput.NomeTurma" />
+		</div>
+
+		<div class="double-column">
+			<div class="column-one">
+				<label for="idcurso"><strong>Id Curso</strong></label>
+				<InputNumber class="input" id="idcurso" name="idcurso" @bind-Value="turmaInput.IdCurso" />
+			</div>
+			<div class="column-two">
+				<label for="ano"><strong>Ano</strong></label>
+				<InputNumber class="input" id="ano" name="ano" @bind-Value="turmaInput.Ano" />
+			</div>
+		</div>
+		<div class="butons">
+			<button type="submit" name="editar" class="btn">Incluir Turma</button>
+		</div>
+
+	</EditForm>
+}
+
+
+@code {
+
+	[Parameter] public int Id { get; set; }
+	private TurmaDTO turmaInput = new TurmaDTO();
+	private Turma turmaOriginal = new Turma();
+
+	protected override async Task OnInitializedAsync()
+	{
+		try
+		{
+			var response = await Http.GetFromJsonAsync<ApiResponse<Turma>>($"Turma/BuscarTurma?id={Id}");
+
+			if (response != null && response.Success)
+			{
+				turmaOriginal = response.Data;
+				turmaInput.NomeTurma = turmaOriginal.turma;
+				turmaInput.Ano = turmaOriginal.ano;
+				turmaInput.IdCurso = turmaOriginal.curso_id;
+			}
+			else
+			{
+				await JsRuntime.InvokeVoidAsync("alert", "Não foi possível carregar a página. Por favor, tente novamente.");
+				Navigation.NavigateTo("/turmas", forceLoad: true);
+			}
+		}
+		catch (Exception ex)
+		{
+			Log.Error($"Erro: {ex.Message}");
+			await JsRuntime.InvokeVoidAsync("alert", "Não foi possível carregar a página. Por favor, tente novamente.");
+			Navigation.NavigateTo("/turmas", forceLoad: true);
+		}
+	}
+
+	private async Task HandleValidSubmit()
+	{
+		try
+		{
+			var validate = ValidaDados();
+			if (validate is not null)
+			{
+				await JsRuntime.InvokeVoidAsync("alert", validate);
+				return;
+			}
+
+			var response = await Http.PatchAsJsonAsync($"Turma/AtualizarTurma?id={Id}", turmaInput);
+
+			if (response.IsSuccessStatusCode)
+			{
+				await JsRuntime.InvokeVoidAsync("alert", "Aluno alterado com sucesso.");
+				Navigation.NavigateTo("/turmas", forceLoad: true);
+			}
+			else
+			{
+				var responseContent = await response.Content.ReadFromJsonAsync<ApiResponse<Aluno>>();
+				await JsRuntime.InvokeVoidAsync("alert", responseContent.Message);
+			}
+		}
+		catch (Exception ex)
+		{
+			Log.Error($"Erro: {ex.Message}");
+			await JsRuntime.InvokeVoidAsync("alert", "Erro na execução.");
+		}
+	}
+
+	public string? ValidaDados()
+	{
+		if (turmaInput.NomeTurma is null)
+			return "Por favor, informe o nome da turma.";
+
+		if (turmaInput.NomeTurma.Length > 45)
+			return "Tamanho do campo nome da turma foi excedido.";
+
+		if (turmaInput.Ano is null)
+			return "Por favor, informe o ano da turma.";
+
+		if (turmaInput.Ano < 1)
+			return "O campo ano não pode ser menor que 1.";
+
+		if (turmaInput.Ano > 5)
+			return "O campo ano não pode ser maior que 5.";
+
+		if (turmaInput.IdCurso is null)
+			return "Por favor, informe o id do curso da turma.";
+
+		if (turmaInput.IdCurso < 1)
+			return "O campo id curso não pode ser menor que 1.";
+
+		return null;
+	}
+
+}
